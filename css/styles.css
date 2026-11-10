@@ -1,0 +1,22 @@
+:root {
+  --brand: #7b3f69;
+  --brand-dark: #512744;
+  --cream: #fff8f2;
+  --ink: #342a30;
+}
+body { color: var(--ink); background: #fff; }
+.brand-nav { background: var(--brand-dark); }
+.hero { background: linear-gradient(120deg, #fff0e7, #f8e6f0); }
+.hero h1 { max-width: 720px; color: var(--brand-dark); }
+.hero p { color: #765c6d; }
+.section-title { color: var(--brand-dark); }
+.btn-brand { background: var(--brand); color: white; border-color: var(--brand); }
+.btn-brand:hover { background: var(--brand-dark); color: white; }
+.btn-outline-brand { color: var(--brand); border-color: var(--brand); }
+.btn-outline-brand:hover { background: var(--brand); color: white; }
+.product-card { height: 100%; border: 0; box-shadow: 0 5px 22px rgba(60,30,50,.08); overflow: hidden; }
+.product-card img { height: 210px; object-fit: cover; background: var(--cream); }
+.product-placeholder { height: 210px; display: grid; place-items: center; background: var(--cream); color: var(--brand); font-size: 3rem; }
+.auth-page { background: var(--cream); min-height: 100vh; }
+.auth-card { max-width: 520px; background: white; border-radius: 18px; box-shadow: 0 10px 35px rgba(60,30,50,.09); }
+footer { background: #fffaf7; }
