@@ -6,7 +6,7 @@
     ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY)
     : null;
   window.requireDb = () => {
-    if (!window.db) throw new Error("Configure a URL e a chave anon do Supabase em js/config.js.");
+    if (!window.db) throw new Error("Chave do Banco de Dados não configurada.");
     return window.db;
   };
 })();

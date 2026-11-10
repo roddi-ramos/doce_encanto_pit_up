@@ -1,5 +1,3 @@
--- Doce Encanto | esquema inicial PostgreSQL para Supabase
--- Execute no SQL Editor do projeto Supabase.
 create extension if not exists pgcrypto;
 
 create table if not exists public.profiles (
@@ -165,7 +163,7 @@ alter table public.order_status_history enable row level security;
 alter table public.reviews enable row level security;
 alter table public.coupon_redemptions enable row level security;
 
--- Profiles
+-- Perfis
 drop policy if exists "profile read self or admin" on public.profiles;
 create policy "profile read self or admin" on public.profiles for select
 using (id = auth.uid() or public.is_admin());
@@ -174,7 +172,7 @@ create policy "profile update self or admin" on public.profiles for update
 using (id = auth.uid() or public.is_admin())
 with check (id = auth.uid() or public.is_admin());
 
--- Public catalog; administrative writes only.
+-- Catalogo publico; admin pode gerenciar.
 drop policy if exists "public read active categories" on public.categories;
 create policy "public read active categories" on public.categories for select
 using (is_active = true or public.is_admin());
@@ -196,12 +194,12 @@ drop policy if exists "admin manage delivery areas" on public.delivery_areas;
 create policy "admin manage delivery areas" on public.delivery_areas for all
 using (public.is_admin()) with check (public.is_admin());
 
--- Cupons não são listados publicamente. Validação será feita por função segura na etapa de pedidos.
+-- Cupons não listados publicamente; apenas administradores podem gerenciar.
 drop policy if exists "admin manage coupons" on public.coupons;
 create policy "admin manage coupons" on public.coupons for all
 using (public.is_admin()) with check (public.is_admin());
 
--- Leitura de pedidos: cliente vê somente os próprios; admin vê todos.
+-- Leitura de pedidos: admin vê todos; clientes vêem somente os próprios.
 drop policy if exists "customer or admin read orders" on public.orders;
 create policy "customer or admin read orders" on public.orders for select
 using (customer_id = auth.uid() or public.is_admin());
@@ -234,10 +232,3 @@ using (public.is_admin()) with check (public.is_admin());
 drop policy if exists "admin manage coupon redemptions" on public.coupon_redemptions;
 create policy "admin manage coupon redemptions" on public.coupon_redemptions for all
 using (public.is_admin()) with check (public.is_admin());
-
--- IMPORTANTE:
--- 1) Não há política de INSERT público para pedidos de propósito.
---    A criação deve ocorrer por Edge Function/RPC validando preços, estoque, cupom e frete no servidor.
--- 2) Para promover um usuário a admin, execute manualmente após ele criar a conta:
---    update public.profiles set role = 'admin' where id = 'UUID_DO_USUARIO';
--- 3) Nunca exponha a chave service_role no frontend.
