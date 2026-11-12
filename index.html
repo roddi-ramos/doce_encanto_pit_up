@@ -15,10 +15,23 @@
     <div class="container">
       <a class="navbar-brand fw-bold" href="index.html">Doce Encanto</a>
       <div class="d-flex gap-2 align-items-center">
-        <a class="btn btn-outline-light btn-sm" href="login.html" id="login-link">Entrar</a>
-        <a class="btn btn-light btn-sm d-none" href="admin.html" id="admin-link">Administração</a>
-        <button class="btn btn-outline-light btn-sm d-none" id="logout-button">Sair</button>
-      </div>
+  <a class="btn btn-outline-light btn-sm" href="login.html" id="login-link">
+    Entrar
+  </a>
+
+  <a class="btn btn-light btn-sm d-none" href="admin.html" id="admin-link">
+    Administração
+  </a>
+
+  <a class="btn btn-outline-light btn-sm" href="carrinho.html">
+    🛒 Carrinho
+    <span id="cart-count" class="badge bg-danger d-none">0</span>
+  </a>
+
+  <button class="btn btn-outline-light btn-sm d-none" id="logout-button">
+    Sair
+  </button>
+</div>
     </div>
   </nav>
 
@@ -47,7 +60,8 @@
     <div class="container text-center small text-secondary">Doce Encanto · Projeto acadêmico</div>
   </footer>
   <script src="js/auth.js"></script>
-  <script src="js/catalog.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/catalog.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
