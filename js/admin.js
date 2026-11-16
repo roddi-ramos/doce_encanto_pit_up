@@ -9,6 +9,17 @@ const message = document.getElementById("admin-message");
 const productRows = document.getElementById("admin-products");
 const orderContainer = document.getElementById("admin-orders");
 
+const orderFilter = document.getElementById("order-status-filter");
+const ordersCount = document.getElementById("orders-count");
+const pagination = document.getElementById("orders-pagination");
+
+const PAGE_SIZE =5;
+
+let allOrders = [];
+let allItems = [];
+let allProfiles = [];
+let currentPage = 1;
+
 const orderStatuses = {
   pending: "Pendente",
   confirmed: "Confirmado",
@@ -105,7 +116,7 @@ async function loadProducts() {
       <td>
         <button
           class="btn btn-sm btn-outline-secondary"
-          data-product="${product.id}"
+          data-product="${safe(product.id)}"
           data-active="${product.is_active}">
           ${product.is_active ? "Desativar" : "Ativar"}
         </button>
@@ -118,10 +129,14 @@ async function loadProducts() {
 
 
 // ============================================
-// PEDIDOS
+// CARREGAMENTO DOS PEDIDOS
 // ============================================
 
 async function loadOrders() {
+  orderContainer.innerHTML = `
+    <div class="alert alert-light">Carregando pedidos...</div>
+  `;
+
   const { data: orders, error } = await db
     .from("orders")
     .select("*")
@@ -132,15 +147,27 @@ async function loadOrders() {
     return;
   }
 
-  if (!orders.length) {
+  allOrders = orders || [];
+  currentPage = 1;
+
+  if (!allOrders.length) {
+    allItems = [];
+    allProfiles = [];
+
     orderContainer.innerHTML = `
       <div class="alert alert-light">Nenhum pedido recebido.</div>
     `;
+
+    ordersCount.textContent = "0 pedidos recebidos";
+    pagination.innerHTML = "";
     return;
   }
 
-  const ids = orders.map(order => order.id);
-  const customers = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
+  const ids = allOrders.map(order => order.id);
+
+  const customers = [
+    ...new Set(allOrders.map(order => order.customer_id).filter(Boolean))
+  ];
 
   const { data: items, error: itemsError } = await db
     .from("order_items")
@@ -152,17 +179,72 @@ async function loadOrders() {
     return;
   }
 
+  allItems = items || [];
+
   const { data: profiles, error: profilesError } = customers.length
-    ? await db.from("profiles").select("id,full_name").in("id", customers)
+    ? await db
+        .from("profiles")
+        .select("id,full_name")
+        .in("id", customers)
     : { data: [], error: null };
 
   if (profilesError) {
     notify("Não foi possível consultar os nomes dos clientes.");
   }
 
-  orderContainer.innerHTML = orders.map(order => {
-    const customer = profiles?.find(p => p.id === order.customer_id);
-    const orderItems = items.filter(item => item.order_id === order.id);
+  allProfiles = profiles || [];
+
+  renderOrders();
+}
+
+
+// ============================================
+// FILTRO E PAGINAÇÃO
+// ============================================
+
+function renderOrders() {
+  const selectedStatus = orderFilter.value;
+
+  const filteredOrders = selectedStatus === "all"
+    ? allOrders
+    : allOrders.filter(order => order.status === selectedStatus);
+
+  const totalOrders = filteredOrders.length;
+  const totalPages = Math.ceil(totalOrders / PAGE_SIZE);
+
+  if (totalPages > 0 && currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+
+  const visibleOrders = filteredOrders.slice(
+    start,
+    start + PAGE_SIZE
+  );
+
+  ordersCount.textContent =
+    `${totalOrders} ${totalOrders === 1 ? "pedido encontrado" : "pedidos encontrados"} · ${allOrders.length} no total`;
+
+  if (!totalOrders) {
+    orderContainer.innerHTML = `
+      <div class="alert alert-light">
+        Nenhum pedido encontrado para este filtro.
+      </div>
+    `;
+
+    pagination.innerHTML = "";
+    return;
+  }
+
+  orderContainer.innerHTML = visibleOrders.map((order, index) => {
+    const customer = allProfiles.find(
+      profile => profile.id === order.customer_id
+    );
+
+    const orderItems = allItems.filter(
+      item => item.order_id === order.id
+    );
 
     const products = orderItems.map(item => `
       <tr>
@@ -172,24 +254,39 @@ async function loadOrders() {
       </tr>
     `).join("");
 
-    return `
-      <div class="border rounded p-3 mb-3">
+    const cardColor = index % 2 === 0
+  ? "#bdcee0"
+  : "#a7d4c9";
+
+return `
+  <div class="border rounded p-3 mb-3"
+       style="background-color: ${cardColor};">
 
         <div class="d-flex justify-content-between flex-wrap gap-2">
           <div>
             <strong>Pedido #${safe(order.id.slice(0, 8))}</strong>
-            <div class="small text-secondary">${date(order.created_at)}</div>
+            <div class="small text-secondary">
+              ${date(order.created_at)}
+            </div>
           </div>
+
           <strong>${money(order.total)}</strong>
         </div>
 
         <hr>
 
-        <p><strong>Cliente:</strong> ${safe(customer?.full_name || "Não identificado")}</p>
+        <p>
+          <strong>Cliente:</strong>
+          ${safe(customer?.full_name || "Não identificado")}
+        </p>
 
-        <p><strong>Pagamento:</strong> ${safe(order.payment_method)}</p>
+        <p>
+          <strong>Pagamento:</strong>
+          ${safe(order.payment_method)}
+        </p>
 
-        <p><strong>Modalidade:</strong>
+        <p>
+          <strong>Modalidade:</strong>
           ${order.fulfillment_type === "delivery" ? "Entrega" : "Retirada"}
         </p>
 
@@ -197,7 +294,10 @@ async function loadOrders() {
           ? `<p><strong>Endereço:</strong> ${safe(order.delivery_address || "Não informado")}</p>`
           : ""}
 
-        <p><strong>Observações:</strong> ${safe(order.notes || "Nenhuma")}</p>
+        <p>
+          <strong>Observações:</strong>
+          ${safe(order.notes || "Nenhuma")}
+        </p>
 
         <details class="mb-3">
           <summary>Ver produtos (${orderItems.length})</summary>
@@ -215,35 +315,56 @@ async function loadOrders() {
             </table>
           </div>
 
-          <p class="small text-end mb-1">Subtotal: ${money(order.subtotal)}</p>
-          <p class="small text-end mb-1">Desconto: ${money(order.discount_total)}</p>
-          <p class="small text-end mb-1">Entrega: ${money(order.delivery_fee)}</p>
-          <p class="text-end fw-bold">Total: ${money(order.total)}</p>
+          <p class="small text-end mb-1">
+            Subtotal: ${money(order.subtotal)}
+          </p>
+
+          <p class="small text-end mb-1">
+            Desconto: ${money(order.discount_total)}
+          </p>
+
+          <p class="small text-end mb-1">
+            Entrega: ${money(order.delivery_fee)}
+          </p>
+
+          <p class="text-end fw-bold">
+            Total: ${money(order.total)}
+          </p>
         </details>
 
         <div class="row g-2">
 
           <div class="col-md-6">
             <label class="form-label">Status do pedido</label>
+
             <select class="form-select"
-              data-order="${order.id}" data-field="status">
+              data-order="${safe(order.id)}"
+              data-field="status">
+
               ${Object.entries(orderStatuses).map(([value, label]) => `
-                <option value="${value}" ${order.status === value ? "selected" : ""}>
+                <option value="${value}"
+                  ${order.status === value ? "selected" : ""}>
                   ${label}
                 </option>
               `).join("")}
+
             </select>
           </div>
 
           <div class="col-md-6">
             <label class="form-label">Status do pagamento</label>
+
             <select class="form-select"
-              data-order="${order.id}" data-field="payment_status">
+              data-order="${safe(order.id)}"
+              data-field="payment_status">
+
               ${Object.entries(paymentStatuses).map(([value, label]) => `
-                <option value="${value}" ${order.payment_status === value ? "selected" : ""}>
+                <option value="${value}"
+                  ${order.payment_status === value ? "selected" : ""}>
                   ${label}
                 </option>
               `).join("")}
+
             </select>
           </div>
 
@@ -251,6 +372,48 @@ async function loadOrders() {
       </div>
     `;
   }).join("");
+
+  renderPagination(totalPages, totalOrders);
+}
+
+
+// ============================================
+// NAVEGAÇÃO ENTRE PÁGINAS
+// ============================================
+
+function renderPagination(totalPages, totalOrders) {
+  if (totalPages <= 1) {
+    pagination.innerHTML = `
+      <span class="small text-secondary">
+        Exibindo ${totalOrders} pedidos.
+      </span>
+    `;
+    return;
+  }
+
+  pagination.innerHTML = `
+    <span class="small text-secondary">
+      Página ${currentPage} de ${totalPages}
+    </span>
+
+    <div class="d-flex gap-2">
+
+      <button
+        class="btn btn-outline-secondary btn-sm"
+        id="previous-page"
+        ${currentPage === 1 ? "disabled" : ""}>
+        Anterior
+      </button>
+
+      <button
+        class="btn btn-outline-secondary btn-sm"
+        id="next-page"
+        ${currentPage === totalPages ? "disabled" : ""}>
+        Próxima
+      </button>
+
+    </div>
+  `;
 }
 
 
@@ -266,26 +429,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadOrders();
 
     // Cadastrar produto
-    document.getElementById("product-form").addEventListener("submit", async event => {
-      event.preventDefault();
+    document.getElementById("product-form")
+      .addEventListener("submit", async event => {
+        event.preventDefault();
 
-      const product = {
-        name: document.getElementById("product-name").value.trim(),
-        price: Number(document.getElementById("product-price").value),
-        stock_quantity: Number(document.getElementById("product-stock").value),
-        description: document.getElementById("product-description").value.trim(),
-        image_url: document.getElementById("product-image").value.trim() || null,
-        is_active: true
-      };
+        const product = {
+          name: document.getElementById("product-name").value.trim(),
+          price: Number(document.getElementById("product-price").value),
+          stock_quantity: Number(document.getElementById("product-stock").value),
+          description: document.getElementById("product-description").value.trim(),
+          image_url: document.getElementById("product-image").value.trim() || null,
+          is_active: true
+        };
 
-      const { error } = await db.from("products").insert(product);
+        const { error } = await db.from("products").insert(product);
 
-      if (error) return notify(error.message);
+        if (error) return notify(error.message);
 
-      event.target.reset();
-      notify("Produto cadastrado com sucesso!", "success");
-      await loadProducts();
-    });
+        event.target.reset();
+        notify("Produto cadastrado com sucesso!", "success");
+        await loadProducts();
+      });
 
     // Ativar ou desativar produto
     productRows.addEventListener("click", async event => {
@@ -322,7 +486,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
+      const order = allOrders.find(
+        item => item.id === select.dataset.order
+      );
+
+      if (order) {
+        order[field] = select.value;
+      }
+
       notify("Pedido atualizado com sucesso!", "success");
+
+      if (field === "status") {
+        renderOrders();
+      }
+    });
+
+    // Filtrar pedidos
+    orderFilter.addEventListener("change", () => {
+      currentPage = 1;
+      renderOrders();
+    });
+
+    // Navegar entre páginas
+    pagination.addEventListener("click", event => {
+      if (event.target.id === "previous-page" && currentPage > 1) {
+        currentPage--;
+        renderOrders();
+      }
+
+      if (event.target.id === "next-page") {
+        currentPage++;
+        renderOrders();
+      }
     });
 
     // Atualizar listagem

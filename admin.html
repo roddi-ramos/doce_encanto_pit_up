@@ -65,11 +65,42 @@
           </button>
         </div>
 
-        <div id="admin-orders">
-          <div class="alert alert-light">
-            Carregando pedidos...
-          </div>
-        </div>
+        <div class="row g-3 mb-3">
+
+  <div class="col-md-5">
+    <label for="order-status-filter" class="form-label">
+      Filtrar pedidos por status
+    </label>
+
+    <select id="order-status-filter" class="form-select">
+      <option value="all">Todos os pedidos</option>
+      <option value="pending">Pendente</option>
+      <option value="confirmed">Confirmado</option>
+      <option value="preparing">Em preparo</option>
+      <option value="ready">Pronto</option>
+      <option value="out_for_delivery">Saiu para entrega</option>
+      <option value="completed">Concluído</option>
+      <option value="cancelled">Cancelado</option>
+    </select>
+  </div>
+
+  <div class="col-md-7 d-flex align-items-end justify-content-md-end">
+    <p id="orders-count" class="text-secondary mb-2">
+      Carregando pedidos...
+    </p>
+  </div>
+
+</div>
+
+<div id="admin-orders">
+  <div class="alert alert-light">
+    Carregando pedidos...
+  </div>
+</div>
+
+<div id="orders-pagination"
+     class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+</div>
 
       </section>
 
