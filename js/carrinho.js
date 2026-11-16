@@ -161,7 +161,9 @@ async function loadCart() {
     </div>
   `;
 
-  renderCheckout();
+  cartSummary.dataset.totalCents = Math.round(total * 100);
+
+  renderCheckout(total);
 }
 
 
@@ -170,7 +172,7 @@ async function loadCart() {
 // ============================================
 
 
-function renderCheckout() {
+function renderCheckout(total) {
   checkoutSection.innerHTML = `
     <div class="card">
       <div class="card-body">
@@ -302,6 +304,36 @@ function renderCheckout() {
             </small>
           </div>
 
+          <div class="mb-3 d-none" id="cash-payment-wrapper">
+
+            <label for="cash-received" class="form-label">
+              Quanto o cliente pretende entregar?
+            </label>
+
+            <input
+              type="number"
+              class="form-control"
+              id="cash-received"
+              min="0.01"
+              step="0.01"
+              placeholder="Ex.: 50,00">
+
+            <div class="mt-2 p-3 bg-light rounded">
+              <div class="d-flex justify-content-between">
+                <span>Total do pedido:</span>
+                <strong id="cash-order-total"></strong>
+              </div>
+
+              <div class="d-flex justify-content-between mt-2">
+                <span>Troco:</span>
+                <strong class="text-success" id="cash-change">
+                  R$ 0,00
+                </strong>
+              </div>
+            </div>
+
+          </div>
+
           <div class="mb-3">
             <label for="order-notes" class="form-label">
               Observações (opcional)
@@ -341,6 +373,43 @@ function renderCheckout() {
 
   const cepMessage =
     document.getElementById("cep-message");
+
+  // Controle do pagamento em dinheiro.
+  const paymentSelect = document.getElementById("payment-method");
+  const cashWrapper = document.getElementById("cash-payment-wrapper");
+  const cashInput = document.getElementById("cash-received");
+  const cashTotal = document.getElementById("cash-order-total");
+  const cashChange = document.getElementById("cash-change");
+
+  const totalCents = Math.round(Number(total) * 100);
+
+  cashTotal.textContent = money(total);
+
+  function updateCashChange() {
+    const received = Math.round(Number(cashInput.value) * 100);
+
+    if (!cashInput.value || !Number.isFinite(received)) {
+      cashChange.textContent = money(0);
+      return;
+    }
+
+    const change = received - totalCents;
+
+    cashChange.textContent = money(Math.max(0, change) / 100);
+  }
+
+  paymentSelect.addEventListener("change", () => {
+    const isCash = paymentSelect.value === "cash";
+
+    cashWrapper.classList.toggle("d-none", !isCash);
+    cashInput.required = isCash;
+
+    if (isCash) {
+      updateCashChange();
+    }
+  });
+
+  cashInput.addEventListener("input", updateCashChange);
 
   // Exibe ou oculta o formulário de entrega.
   fulfillmentSelect.addEventListener("change", () => {
@@ -493,39 +562,68 @@ checkoutSection.addEventListener("submit", async event => {
     const paymentMethod =
       document.getElementById("payment-method").value;
 
-    
-let deliveryAddress = "";
+    let cashReceived = null;
+    let cashChangeValue = null;
 
-if (fulfillmentType === "delivery") {
-  const cep = document.getElementById("delivery-cep").value.trim();
-  const street = document.getElementById("delivery-street").value.trim();
-  const number = document.getElementById("delivery-number").value.trim();
-  const neighborhood = document.getElementById("delivery-neighborhood").value.trim();
-  const city = document.getElementById("delivery-city").value.trim();
-  const state = document.getElementById("delivery-state").value.trim();
-  const complement = document.getElementById("delivery-complement").value.trim();
+    if (paymentMethod === "cash") {
+      const cashInput = document.getElementById("cash-received");
 
-  if (!cep || !street || !number || !neighborhood || !city || !state) {
-    throw new Error("Preencha todos os campos obrigatórios do endereço.");
-  }
+      cashReceived = Math.round(Number(cashInput.value) * 100);
+      const orderTotal = Math.round(Number(cartSummary.dataset.totalCents || 0));
 
-  deliveryAddress =
-    `${street}, nº ${number}, ${neighborhood}, ${city}/${state}, CEP: ${cep}`;
+      if (!cashInput.value || !Number.isFinite(cashReceived) || cashReceived <= 0) {
+        throw new Error("Informe quanto pretende entregar em dinheiro.");
+      }
 
-  if (complement) {
-    deliveryAddress += `, Complemento: ${complement}`;
-  }
-}
+      if (cashReceived < orderTotal) {
+        throw new Error("O valor informado é inferior ao total do pedido.");
+      }
 
-    const notes =
+      cashChangeValue = cashReceived - orderTotal;
+    }
+
+
+    let deliveryAddress = "";
+
+    if (fulfillmentType === "delivery") {
+      const cep = document.getElementById("delivery-cep").value.trim();
+      const street = document.getElementById("delivery-street").value.trim();
+      const number = document.getElementById("delivery-number").value.trim();
+      const neighborhood = document.getElementById("delivery-neighborhood").value.trim();
+      const city = document.getElementById("delivery-city").value.trim();
+      const state = document.getElementById("delivery-state").value.trim();
+      const complement = document.getElementById("delivery-complement").value.trim();
+
+      if (!cep || !street || !number || !neighborhood || !city || !state) {
+        throw new Error("Preencha todos os campos obrigatórios do endereço.");
+      }
+
+      deliveryAddress =
+        `${street}, nº ${number}, ${neighborhood}, ${city}/${state}, CEP: ${cep}`;
+
+      if (complement) {
+        deliveryAddress += `, Complemento: ${complement}`;
+      }
+    }
+
+    let notes =
       document.getElementById("order-notes").value.trim();
+
+    if (paymentMethod === "cash") {
+      const cashInfo =
+        `Pagamento em dinheiro | Valor entregue: ${money(cashReceived / 100)} | Troco: ${money(cashChangeValue / 100)}`;
+
+      notes = notes
+        ? `${notes}\n${cashInfo}`
+        : cashInfo;
+    }
 
     if (fulfillmentType === "delivery" && !deliveryAddress) {
       throw new Error("Informe o endereço de entrega.");
     }
 
     // Envia apenas os IDs e quantidades.
-    // Os precos serao conferidos no banco.
+    // Os preços serão conferidos no banco.
     const items = window.Cart.get().map(item => ({
       product_id: item.id,
       quantity: item.quantity
