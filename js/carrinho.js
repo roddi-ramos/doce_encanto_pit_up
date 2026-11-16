@@ -169,6 +169,7 @@ async function loadCart() {
 // 2. FORMULARIO DE FINALIZACAO
 // ============================================
 
+
 function renderCheckout() {
   checkoutSection.innerHTML = `
     <div class="card">
@@ -185,58 +186,123 @@ function renderCheckout() {
               Como deseja receber?
             </label>
 
-            <select
-              class="form-select"
-              id="fulfillment-type"
-              required>
-
+            <select class="form-select" id="fulfillment-type" required>
               <option value="pickup">Retirar no local</option>
               <option value="delivery">Receber por entrega</option>
-
             </select>
           </div>
 
           <div class="mb-3 d-none" id="delivery-address-wrapper">
 
-            <label for="delivery-address" class="form-label">
-              Endereço de entrega
-            </label>
+            <h5 class="fw-bold mb-3">Endereço de entrega</h5>
 
-            <textarea
-              class="form-control"
-              id="delivery-address"
-              rows="2"
-              placeholder="Rua, número, bairro e complemento">
-            </textarea>
+            <div class="row">
+              <div class="col-md-5 mb-3">
+                <label for="delivery-cep" class="form-label">CEP</label>
+
+                <input
+                  type="text"
+                  class="form-control"
+                  id="delivery-cep"
+                  placeholder="00000-000"
+                  maxlength="9"
+                  inputmode="numeric">
+              </div>
+
+              <div class="col-md-3 mb-3 d-flex align-items-end">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary w-100"
+                  id="search-cep">
+                  Consultar CEP
+                </button>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="delivery-street" class="form-label">Rua</label>
+              <input
+                type="text"
+                class="form-control"
+                id="delivery-street"
+                placeholder="Rua ou avenida">
+            </div>
+
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label for="delivery-number" class="form-label">Número</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="delivery-number"
+                  placeholder="Número">
+              </div>
+
+              <div class="col-md-8 mb-3">
+                <label for="delivery-neighborhood" class="form-label">Bairro</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="delivery-neighborhood"
+                  placeholder="Bairro">
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-8 mb-3">
+                <label for="delivery-city" class="form-label">Cidade</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="delivery-city"
+                  placeholder="Cidade">
+              </div>
+
+              <div class="col-md-4 mb-3">
+                <label for="delivery-state" class="form-label">Estado</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="delivery-state"
+                  placeholder="UF"
+                  maxlength="2">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="delivery-complement" class="form-label">
+                Complemento (opcional)
+              </label>
+
+              <input
+                type="text"
+                class="form-control"
+                id="delivery-complement"
+                placeholder="Apartamento, bloco, referência...">
+            </div>
+
+            <div id="cep-message" class="mb-3"></div>
 
           </div>
 
           <div class="mb-3">
-
             <label for="payment-method" class="form-label">
               Forma de pagamento
             </label>
 
-            <select
-              class="form-select"
-              id="payment-method"
-              required>
-
+            <select class="form-select" id="payment-method" required>
               <option value="pix">Pix</option>
               <option value="credit_card">Cartão de crédito</option>
               <option value="debit_card">Cartão de débito</option>
               <option value="cash">Dinheiro</option>
-
             </select>
 
             <small class="text-secondary">
               Pagamento simulado para fins acadêmicos.
             </small>
-
           </div>
 
           <div class="mb-3">
-
             <label for="order-notes" class="form-label">
               Observações (opcional)
             </label>
@@ -247,7 +313,6 @@ function renderCheckout() {
               rows="2"
               placeholder="Alguma informação adicional sobre o pedido?">
             </textarea>
-
           </div>
 
           <div id="checkout-message" class="mb-3"></div>
@@ -256,9 +321,7 @@ function renderCheckout() {
             type="submit"
             class="btn btn-primary w-100"
             id="checkout-button">
-
             Confirmar pedido
-
           </button>
 
         </form>
@@ -273,14 +336,116 @@ function renderCheckout() {
   const addressWrapper =
     document.getElementById("delivery-address-wrapper");
 
-  const addressInput =
-    document.getElementById("delivery-address");
+  const cepInput =
+    document.getElementById("delivery-cep");
 
+  const cepMessage =
+    document.getElementById("cep-message");
+
+  // Exibe ou oculta o formulário de entrega.
   fulfillmentSelect.addEventListener("change", () => {
     const delivery = fulfillmentSelect.value === "delivery";
 
     addressWrapper.classList.toggle("d-none", !delivery);
-    addressInput.required = delivery;
+
+    [
+      "delivery-cep",
+      "delivery-street",
+      "delivery-number",
+      "delivery-neighborhood",
+      "delivery-city",
+      "delivery-state"
+    ].forEach(id => {
+      document.getElementById(id).required = delivery;
+    });
+  });
+
+  // Formata o CEP enquanto o usuário digita.
+  cepInput.addEventListener("input", () => {
+    let cep = cepInput.value.replace(/\D/g, "").slice(0, 8);
+
+    if (cep.length > 5) {
+      cep = cep.slice(0, 5) + "-" + cep.slice(5);
+    }
+
+    cepInput.value = cep;
+  });
+
+  // Consulta o endereço no ViaCEP.
+  async function consultarCep() {
+    const cep = cepInput.value.replace(/\D/g, "");
+
+    if (cep.length !== 8) {
+      cepMessage.innerHTML = `
+        <div class="alert alert-warning">
+          Informe um CEP válido com 8 números.
+        </div>
+      `;
+      return;
+    }
+
+    const searchButton = document.getElementById("search-cep");
+
+    searchButton.disabled = true;
+    searchButton.textContent = "Consultando...";
+
+    cepMessage.innerHTML = "";
+
+    try {
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cep}/json/`
+      );
+
+      if (!response.ok) {
+        throw new Error("Não foi possível consultar o CEP.");
+      }
+
+      const data = await response.json();
+
+      if (data.erro) {
+        throw new Error("CEP não encontrado. Verifique os números.");
+      }
+
+      document.getElementById("delivery-street").value =
+        data.logradouro || "";
+
+      document.getElementById("delivery-neighborhood").value =
+        data.bairro || "";
+
+      document.getElementById("delivery-city").value =
+        data.localidade || "";
+
+      document.getElementById("delivery-state").value =
+        data.uf || "";
+
+      cepMessage.innerHTML = `
+        <div class="alert alert-success">
+          Endereço encontrado! Confira os dados e informe o número.
+        </div>
+      `;
+
+      document.getElementById("delivery-number").focus();
+
+    } catch (error) {
+      cepMessage.innerHTML = `
+        <div class="alert alert-danger">
+          ${escapeHtml(error.message)}
+        </div>
+      `;
+
+    } finally {
+      searchButton.disabled = false;
+      searchButton.textContent = "Consultar CEP";
+    }
+  }
+
+  document.getElementById("search-cep")
+    .addEventListener("click", consultarCep);
+
+  cepInput.addEventListener("blur", () => {
+    if (cepInput.value.replace(/\D/g, "").length === 8) {
+      consultarCep();
+    }
   });
 }
 
@@ -328,8 +493,29 @@ checkoutSection.addEventListener("submit", async event => {
     const paymentMethod =
       document.getElementById("payment-method").value;
 
-    const deliveryAddress =
-      document.getElementById("delivery-address").value.trim();
+    
+let deliveryAddress = "";
+
+if (fulfillmentType === "delivery") {
+  const cep = document.getElementById("delivery-cep").value.trim();
+  const street = document.getElementById("delivery-street").value.trim();
+  const number = document.getElementById("delivery-number").value.trim();
+  const neighborhood = document.getElementById("delivery-neighborhood").value.trim();
+  const city = document.getElementById("delivery-city").value.trim();
+  const state = document.getElementById("delivery-state").value.trim();
+  const complement = document.getElementById("delivery-complement").value.trim();
+
+  if (!cep || !street || !number || !neighborhood || !city || !state) {
+    throw new Error("Preencha todos os campos obrigatórios do endereço.");
+  }
+
+  deliveryAddress =
+    `${street}, nº ${number}, ${neighborhood}, ${city}/${state}, CEP: ${cep}`;
+
+  if (complement) {
+    deliveryAddress += `, Complemento: ${complement}`;
+  }
+}
 
     const notes =
       document.getElementById("order-notes").value.trim();
