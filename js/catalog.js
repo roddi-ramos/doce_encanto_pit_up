@@ -85,14 +85,21 @@ async function loadCatalog() {
   `).join("");
 
   productsContainer.querySelectorAll(".add-cart-button")
-    .forEach(button => {
-      button.addEventListener("click", () => {
-        window.Cart.add(
-          button.dataset.productId,
-          Number(button.dataset.stock)
-        );
-      });
+  .forEach(button => {
+    button.addEventListener("click", () => {
+      const added = window.Cart.add(
+        button.dataset.productId,
+        Number(button.dataset.stock)
+      );
+
+      if (added) {
+        button.innerHTML = "✓ Adicionado";
+        button.classList.remove("btn-primary");
+        button.classList.add("btn-success");
+        button.disabled = true;
+      }
     });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", loadCatalog);

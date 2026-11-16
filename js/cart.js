@@ -26,14 +26,29 @@ function updateCartCount() {
   badge.classList.toggle("d-none", total === 0);
 }
 
+function showCartFeedback(message, type = "success") {
+  const feedback = document.getElementById("cart-feedback");
+
+  if (!feedback) {
+    alert(message);
+    return;
+  }
+
+  feedback.textContent = message;
+  feedback.className = `alert alert-${type}`;
+}
+
 function addToCart(productId, stock) {
   const cart = getCart();
   const item = cart.find(p => p.id === productId);
 
   if (item) {
     if (item.quantity >= stock) {
-      alert("Você atingiu o limite de estoque deste produto.");
-      return;
+      showCartFeedback(
+        "Você atingiu o limite de estoque deste produto.",
+        "warning"
+      );
+      return false;
     }
 
     item.quantity++;
@@ -42,7 +57,10 @@ function addToCart(productId, stock) {
   }
 
   saveCart(cart);
-  alert("Produto adicionado ao carrinho!");
+
+  showCartFeedback("Produto adicionado ao carrinho!");
+
+  return true;
 }
 
 function setCartQuantity(productId, quantity, stock) {
